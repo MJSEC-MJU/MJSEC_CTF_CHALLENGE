@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>Leaderboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 40px;
+        }
+
+        .leaderboard-container img {
+            display: block;
+            margin: 0 auto 30px;
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th, table td {
+            padding: 15px;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        table tr:hover {
+            background-color: #ddd;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 50px;
+            text-align: center;
+            background-color: #0a1522dc;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container leaderboard-container">
+        <h1>Leaderboard</h1>
+        <img src="data:image/png;base64,{{ leaderboard_graph }}" alt="Leaderboard Graph">
+        <h2>Rankings</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Username</th>
+                    <th>Total Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rank, username, total_points in rankings %}
+                    <tr>
+                        <td>{{ rank }}</td>
+                        <td>{{ username }}</td>
+                        <td>{{ total_points }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{% url 'index' %}" class="btn">Back to Home</a>
+    </div>
+</body>
+</html>

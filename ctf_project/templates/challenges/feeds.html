@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>Challenges</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #1b1616;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        .btn-logout {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .btn-logout:hover {
+            background-color: #c82333;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .challenges-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .challenges-list li {
+            margin-bottom: 20px;
+        }
+
+        .challenge-card {
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .challenge-card h2 {
+            margin: 0 0 10px;
+            color: #333;
+        }
+
+        .challenge-card p {
+            color: #666;
+        
+        }
+        .points {
+            font-size: 20px; 
+            font-weight: bold; 
+            color: #007bff; 
+            margin-top: 10px;
+            margin-bottom: 20px; 
+        }
+        .challenges-list a {
+        color: white; 
+        }
+        .challenges-list li.solved div.challenge-card {
+            background: rgb(75, 255, 114); 
+        }
+        .challenges-list li.solved a {
+        color: rgb(75, 255, 114); 
+        }
+        
+
+        .challenge-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .btn-leaderboard {
+            display: block;
+            width: 90%;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 0 auto;
+        }
+
+        .btn-leaderboard:hover {
+            padding: 20px;
+            background: rgb(9, 160, 29);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>MJSEC CTF</h1>
+        <a href="{% url 'accounts:logout' %}" class="btn btn-logout">Logout</a>
+    </header>
+    <div class="container">
+        <ul class="challenges-list">
+            {% for challenge in challenges %}
+                <li class="{% if challenge.id in solved_challenges %}solved{% endif %}">
+                    <a href="{% url 'challenges:challenge_detail' challenge.id %}">
+                        <div class="challenge-card">
+                            <h2>{{ challenge.title }}</h2>
+                            <p>{{ challenge.description }}</p>
+                            <p class="points">{{challenge.points}} pt</p>
+                        </div>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+        <a href="{% url 'challenges:leaderboard' %}" class="btn btn-leaderboard">View Leaderboard</a>
+    </div>
+</body>
+</html>
