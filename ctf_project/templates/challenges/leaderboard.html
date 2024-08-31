@@ -124,6 +124,7 @@
     <script>
         // Get the Plotly graph JSON data from Django context
         var graphData = {{ leaderboard_graph|safe }};
+        console.log(graphData); // For debugging
 
         // Plot the graph with white background and custom colors for lines and text
         Plotly.react('leaderboard-graph', graphData.data, {

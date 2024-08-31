@@ -9,7 +9,10 @@ from .models import Challenge, Submission, Team
 import base64
 import pytz
 import plotly.graph_objs as go
-
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from .models import Submission, Team
+from collections import defaultdict
 def index(request):
     if request.user.is_authenticated:
         return redirect("challenges:feeds")  
@@ -132,6 +135,10 @@ def submit_flag(request):
         return redirect('challenges:challenge_detail', challenge_id=challenge.id)
 
     return redirect('challenges:index')
+@receiver(post_delete, sender=Submission)
+def update_team_points_on_delete(sender, instance, **kwargs):
+    team = instance.team
+    update_team_points(team)
 
 def update_team_points(team):
     total_points = Submission.objects.filter(team=team, correct=True).aggregate(
@@ -148,19 +155,25 @@ def leaderboard(request):
 
     for team in teams:
         submissions = Submission.objects.filter(team=team, correct=True).order_by('submitted_at')
-        time_series_data = {}
+        time_series_data = defaultdict(int)  # Use defaultdict to simplify accumulation
 
         for submission in submissions:
             timestamp = submission.submitted_at
             points = submission.challenge.points
-            if timestamp in time_series_data:
-                time_series_data[timestamp] += points
-            else:
-                time_series_data[timestamp] = points
+            time_series_data[timestamp] += points  # Accumulate points for each timestamp
         
+        # Sort data by timestamp
         sorted_times = sorted(time_series_data.keys())
         sorted_points = [time_series_data[time] for time in sorted_times]
-        team_time_series_data[team.name] = (sorted_times, sorted_points)
+        
+        # Create a cumulative sum of points
+        cumulative_points = []
+        running_total = 0
+        for points in sorted_points:
+            running_total += points
+            cumulative_points.append(running_total)
+        
+        team_time_series_data[team.name] = (sorted_times, cumulative_points)
 
     traces = []
     colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F6']
@@ -179,9 +192,11 @@ def leaderboard(request):
         title='Points Over Time',
         xaxis=dict(title='Time', tickformat='%H:%M'),
         yaxis=dict(title='Total Points'),
-        plot_bgcolor='#1a1a1a',
-        paper_bgcolor='#1a1a1a',
-        font=dict(color='#f0f0f0')
+        plot_bgcolor='#ffffff',  # Set plot background color to white
+        paper_bgcolor='#ffffff',  # Set paper background color to white
+        font=dict(color='#333333'),  # Set font color for text
+        xaxis_title_font=dict(color='#333333'),
+        yaxis_title_font=dict(color='#333333'),
     )
     
     fig = go.Figure(data=traces, layout=layout)
