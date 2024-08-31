@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,11 +26,12 @@
             max-width: 500px;
             width: 100%;
         }
+
         header {
             background: rgb(0, 68, 255);
             border-radius: 5px;
+            padding: 10px 0;
         }
-        
 
         header h1 {
             text-align: center;
@@ -49,6 +50,29 @@
 
         .challenge-details p strong {
             color: #333;
+        }
+
+        .file-download, .external-link {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .file-download a, .external-link a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        .file-download a:hover, .external-link a:hover {
+            text-decoration: underline;
+        }
+
+        .external-link {
+            word-wrap: break-word;
+            text-align: left;
         }
 
         .messages {
@@ -117,6 +141,12 @@
         .btn-back:hover {
             background-color: #5a6268;
         }
+
+        .solved-message {
+            font-weight: bold;
+            color: #28a745;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -126,7 +156,20 @@
         </header>
         <section class="challenge-details">
             <p>{{ challenge.description }}</p>
-            <p><strong>{{ num_solvers }} Solved</strong></p>
+            <p><strong>{{ num_solvers }}명이 해결했습니다</strong></p>
+            
+            {% if challenge.file %}
+            <div class="file-download">
+                <a href="{{ challenge.file.url }}" download>파일 다운로드</a>
+            </div>
+            {% endif %}
+            
+            {% if challenge.url %}
+            <div class="external-link">
+                <strong>문제 링크:</strong>
+                <a href="{{ challenge.url }}" target="_blank">{{ challenge.url }}</a>
+            </div>
+            {% endif %}
             
             {% if messages %}
                 <ul class="messages">
@@ -135,18 +178,19 @@
                     {% endfor %}
                 </ul>
             {% endif %}
+            
             {% if not solved %}
             <form method="post" action="{% url 'challenges:submit_flag' %}" class="submit-form">
                 {% csrf_token %}
                 <input type="hidden" name="challenge_id" value="{{ challenge.id }}">
-                <input type="text" name="flag" placeholder="Enter flag" class="input-field">
-                <button type="submit" class="btn">Submit</button>
+                <input type="text" name="flag" placeholder="플래그를 입력하세요" class="input-field">
+                <button type="submit" class="btn">제출</button>
             </form>
             {% else %}
-                <p class="solved-message">You have already solved this challenge!</p>
+                <p class="solved-message">이미 이 문제를 해결하셨습니다!</p>
             {% endif %}
             
-            <a href="{% url 'challenges:index' %}" class="btn btn-back">Back to Challenges</a>
+            <a href="{% url 'challenges:index' %}" class="btn btn-back">문제 목록으로 돌아가기</a>
         </section>
     </div>
 </body>
