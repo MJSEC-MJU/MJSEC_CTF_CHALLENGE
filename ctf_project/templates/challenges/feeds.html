@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+    <title>Challenges</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <title>Challenges</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -44,17 +43,15 @@
 
         .container {
             padding: 20px;
-            max-width: 400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
-        .challenges-list {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        .challenges-list li {
-            margin-bottom: 20px;
+        .challenges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
         }
 
         .challenge-card {
@@ -63,59 +60,80 @@
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 180px; /* Adjusted height */
+            text-align: center;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+            box-sizing: border-box; /* Ensure padding is included in height calculation */
         }
 
         .challenge-card h2 {
-            margin: 0 0 10px;
+            margin: 0 0 15px; /* Adjusted margin for space below title */
             color: #333;
+            font-size: 22px; /* Increase font size for titles */
         }
 
         .challenge-card p {
             color: #666;
-        
+            margin: 0 0 10px; /* Margin for space below description */
+            line-height: 1.4;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
         }
-        .points {
-            font-size: 20px; 
-            font-weight: bold; 
-            color: #007bff; 
-            margin-top: 10px;
-            margin-bottom: 20px; 
-        }
-        .challenges-list a {
-        color: white; 
-        }
-        .challenges-list li.solved div.challenge-card {
-            background: rgb(75, 255, 114); 
-        }
-        .challenges-list li.solved a {
-        color: rgb(75, 255, 114); 
-        }
-        
 
-        .challenge-card:hover {
-            transform: translateY(-5px);
+        .points {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+            margin-top: auto; /* Push points to the bottom */
         }
 
         .btn-leaderboard {
             display: block;
             width: 90%;
             padding: 15px;
-            margin-top: 20px;
+            margin: 30px auto 0;
             text-align: center;
             background-color: #28a745;
             color: white;
             text-decoration: none;
             border-radius: 5px;
             font-size: 16px;
-            margin: 0 auto;
         }
 
         .btn-leaderboard:hover {
-            padding: 20px;
+            padding: 15px;
             background: rgb(9, 160, 29);
-            border-radius: 10px;
+            border-radius: 5px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s;
+        }
+
+        .challenge-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .challenge-card a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .challenge-card a:hover {
+            color: #0056b3;
+        }
+
+        /* Conditional styling based on team and solved status */
+        .challenge-card.solved {
+            background: rgb(75, 255, 114); /* Green background for solved challenges */
+        }
+
+        .challenge-card.team-solved {
+            background: rgb(75, 255, 114); /* Green background for challenges solved by team */
         }
     </style>
 </head>
@@ -125,19 +143,17 @@
         <a href="{% url 'accounts:logout' %}" class="btn btn-logout">Logout</a>
     </header>
     <div class="container">
-        <ul class="challenges-list">
+        <div class="challenges-grid">
             {% for challenge in challenges %}
-                <li class="{% if challenge.id in solved_challenges %}solved{% endif %}">
+                <div class="challenge-card {% if challenge.id in solved_challenges %}solved{% endif %} {% if challenge.id in team_solved_challenges %}team-solved{% endif %}">
                     <a href="{% url 'challenges:challenge_detail' challenge.id %}">
-                        <div class="challenge-card">
-                            <h2>{{ challenge.title }}</h2>
-                            <p>{{ challenge.description }}</p>
-                            <p class="points">{{challenge.points}} pt</p>
-                        </div>
+                        <h2>{{ challenge.title }}</h2>
+                        <p>{{ challenge.description }}</p>
+                        <p class="points">{{ challenge.points }} pt</p>
                     </a>
-                </li>
+                </div>
             {% endfor %}
-        </ul>
+        </div>
         <a href="{% url 'challenges:leaderboard' %}" class="btn btn-leaderboard">View Leaderboard</a>
     </div>
 </body>

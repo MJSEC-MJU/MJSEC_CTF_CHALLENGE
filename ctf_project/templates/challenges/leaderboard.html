@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +17,6 @@
             align-items: center;
             height: 100vh;
         }
-
         .container {
             background: white;
             padding: 20px 40px;
@@ -26,51 +25,35 @@
             max-width: 800px;
             width: 100%;
         }
-
         h1 {
             text-align: center;
             color: #333;
             margin-bottom: 20px;
         }
-
-        h2 {
-            color: #333;
-            margin-top: 40px;
+        #leaderboard-graph {
+            margin-bottom: 30px; /* Space between the graph and table */
+            height: 400px; /* Set a height for the graph */
         }
-
-        .leaderboard-container img {
-            display: block;
-            margin: 0 auto 30px;
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-
         table th, table td {
             padding: 15px;
             text-align: left;
+            border: 1px solid #000; /* Set border color to black */
         }
-
         table th {
             background-color: #007bff;
             color: white;
         }
-
         table tr:nth-child(even) {
             background-color: #f2f2f2;
         }
-
         table tr:hover {
             background-color: #ddd;
         }
-
         .btn {
             display: block;
             width: 100%;
@@ -84,36 +67,91 @@
             font-size: 16px;
             cursor: pointer;
         }
-
         .btn:hover {
             background-color: #0056b3;
+        }
+        .mvp-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .mvp-container h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .mvp-container p {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
         }
     </style>
 </head>
 <body>
-    <div class="container leaderboard-container">
+    <div class="container">
         <h1>Leaderboard</h1>
-        <img src="data:image/png;base64,{{ leaderboard_graph }}" alt="Leaderboard Graph">
+        <div id="leaderboard-graph"></div> <!-- Container for the Plotly graph -->
         <h2>Rankings</h2>
         <table>
             <thead>
                 <tr>
                     <th>Rank</th>
-                    <th>Username</th>
+                    <th>Team Name</th>
                     <th>Total Points</th>
                 </tr>
             </thead>
             <tbody>
-                {% for rank, username, total_points in rankings %}
-                    <tr>
-                        <td>{{ rank }}</td>
-                        <td>{{ username }}</td>
-                        <td>{{ total_points }}</td>
-                    </tr>
+                {% for team in teams %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ team.name }}</td>
+                    <td>{{ team.total_points }}</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
+        <div class="mvp-container">
+            <h2>MVP</h2>
+            {% if mvp %}
+                <p>{{ mvp.name }} - {{ mvp.solves }} problems solved</p>
+            {% else %}
+                <p>No MVP yet</p>
+            {% endif %}
+        </div>
         <a href="{% url 'index' %}" class="btn">Back to Home</a>
     </div>
+
+    <!-- Include Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        // Get the Plotly graph JSON data from Django context
+        var graphData = {{ leaderboard_graph|safe }};
+
+        // Plot the graph with white background and custom colors for lines and text
+        Plotly.react('leaderboard-graph', graphData.data, {
+            ...graphData.layout,
+            plot_bgcolor: '#ffffff', // Set plot background color to white
+            paper_bgcolor: '#ffffff', // Set paper background color to white
+            font: {
+                color: '#333333' // Set font color for text
+            },
+            xaxis: {
+                linecolor: '#000000', // Set x-axis line color
+                tickfont: {
+                    color: '#333333' // Set x-axis tick font color
+                }
+            },
+            yaxis: {
+                linecolor: '#000000', // Set y-axis line color
+                tickfont: {
+                    color: '#333333' // Set y-axis tick font color
+                }
+            },
+            margin: {
+                l: 50,
+                r: 50,
+                t: 50,
+                b: 50
+            }
+        });
+    </script>
 </body>
 </html>

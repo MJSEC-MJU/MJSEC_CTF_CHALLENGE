@@ -1,5 +1,3 @@
-import matplotlib.pyplot 
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from io import BytesIO
@@ -7,10 +5,10 @@ from django.db.models import Sum, Case, When
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Challenge, Submission, Team, ScoreHistory
-from django.contrib.auth.models import User
+from .models import Challenge, Submission, Team
 import base64
 import pytz
+import plotly.graph_objs as go
 
 def index(request):
     if request.user.is_authenticated:
@@ -21,11 +19,9 @@ def index(request):
 @login_required
 def feeds(request):
     user = request.user
-    
-    # Get the user's team
     team = user.team_set.first()
+
     if not team:
-        # Handle the case where the user is not in any team
         challenges = Challenge.objects.all()
         solved_challenges = []
     else:
@@ -42,17 +38,14 @@ def feeds(request):
 def challenge_detail(request, challenge_id):
     user = request.user
     team = user.team_set.first()
+
     if not team:
         messages.error(request, 'You are not part of any team.')
         return redirect("challenges:feeds")
     
     challenge = get_object_or_404(Challenge, pk=challenge_id)
     solved = Submission.objects.filter(team=team, challenge=challenge, correct=True).exists()
-
-    # Calculate the number of solvers for this challenge
-    num_solvers = Submission.objects.filter(
-        challenge=challenge, correct=True
-    ).values('team').distinct().count()
+    num_solvers = Submission.objects.filter(challenge=challenge, correct=True).values('team').distinct().count()
 
     if request.method == 'POST':
         submitted_flag = request.POST['flag']
@@ -66,7 +59,7 @@ def challenge_detail(request, challenge_id):
 
         if correct:
             messages.success(request, 'Correct flag!')
-            update_all_users_points()
+            update_team_points(team)
         else:
             messages.error(request, 'Incorrect flag. Try again!')
 
@@ -77,13 +70,13 @@ def challenge_detail(request, challenge_id):
         'num_solvers': num_solvers,
         'solved': solved,
     }
-
     return render(request, 'challenges/challenge_detail.html', context)
 
 @login_required
 def submit_flag(request):
     user = request.user
     team = user.team_set.first()
+
     if not team:
         messages.error(request, 'You are not part of any team.')
         return redirect("challenges:feeds")
@@ -97,15 +90,13 @@ def submit_flag(request):
             return redirect('challenges:challenge_detail', challenge_id=challenge_id)
 
         challenge = get_object_or_404(Challenge, pk=challenge_id)
-
-        # Check if the team has already submitted a correct flag for this challenge
         existing_submission = Submission.objects.filter(team=team, challenge=challenge).first()
+
         if existing_submission:
             if existing_submission.correct:
                 messages.error(request, 'You have already solved this challenge!')
                 return redirect('challenges:challenge_detail', challenge_id=challenge.id)
             else:
-                # Allow re-submission if the previous attempt was incorrect
                 correct = (challenge.flag == submitted_flag)
                 existing_submission.submitted_flag = submitted_flag
                 existing_submission.correct = correct
@@ -114,13 +105,12 @@ def submit_flag(request):
 
                 if correct:
                     messages.success(request, 'Correct flag!')
-                    update_all_users_points()
+                    update_team_points(team)
                 else:
                     messages.error(request, 'Incorrect flag. Try again!')
-                
+
                 return redirect('challenges:challenge_detail', challenge_id=challenge.id)
         else:
-            # Handle new submission
             correct = (challenge.flag == submitted_flag)
             try:
                 submission = Submission(
@@ -133,93 +123,86 @@ def submit_flag(request):
                 submission.save()
                 if correct:
                     messages.success(request, 'Correct flag!')
-                    update_all_users_points()
+                    update_team_points(team)
                 else:
                     messages.error(request, 'Incorrect flag. Try again!')
             except Exception as e:
                 messages.error(request, f'An error occurred: {e}')
         
-        # Redirect to the challenge detail page after submission
         return redirect('challenges:challenge_detail', challenge_id=challenge.id)
 
-    # If the request method is not POST, redirect to the challenges index page
     return redirect('challenges:index')
 
-def update_all_users_points():
-    for team in Team.objects.all():
-        total_points = Submission.objects.filter(team=team, correct=True).aggregate(Sum('challenge__points'))['challenge__points__sum'] or 0
-        ScoreHistory.objects.create(team=team, points=total_points)
+def update_team_points(team):
+    total_points = Submission.objects.filter(team=team, correct=True).aggregate(
+        total_points=Sum('challenge__points')
+    )['total_points'] or 0
+    team.total_points = total_points
+    team.save()
 
 @login_required
 def leaderboard(request):
-    user = request.user
+    teams = Team.objects.order_by('-total_points', 'name')
 
-    # Calculate total points for each team
-    teams = Team.objects.annotate(
-        total_points=Sum(Case(
-            When(submission__correct=True, then='submission__challenge__points'),
-            default=0
-        ))
-    ).order_by('-total_points', 'name')
-
-    # Prepare data for time series graph
     team_time_series_data = {}
 
-    for team in Team.objects.all():
-        score_histories = ScoreHistory.objects.filter(team=team).order_by('timestamp')
+    for team in teams:
+        submissions = Submission.objects.filter(team=team, correct=True).order_by('submitted_at')
         time_series_data = {}
 
-        for score_history in score_histories:
-            time_series_data[score_history.timestamp] = score_history.points
+        for submission in submissions:
+            timestamp = submission.submitted_at
+            points = submission.challenge.points
+            if timestamp in time_series_data:
+                time_series_data[timestamp] += points
+            else:
+                time_series_data[timestamp] = points
         
-        if time_series_data:
-            sorted_times = sorted(time_series_data.keys())
-            sorted_points = [time_series_data[time] for time in sorted_times]
-            team_time_series_data[team.name] = (sorted_times, sorted_points)
+        sorted_times = sorted(time_series_data.keys())
+        sorted_points = [time_series_data[time] for time in sorted_times]
+        team_time_series_data[team.name] = (sorted_times, sorted_points)
 
-    # Create the plot
-    fig, ax = plt.subplots(figsize=(20, 10))
+    traces = []
+    colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F6']
 
-    colors = plt.cm.get_cmap('tab10', len(team_time_series_data))
-    
     for i, (team_name, (times, points)) in enumerate(team_time_series_data.items()):
-        ax.plot(times, points, marker='o', color=colors(i), label=team_name, linewidth=5)
+        trace = go.Scatter(
+            x=[time.isoformat() for time in times],
+            y=points,
+            mode='lines+markers',
+            name=team_name,
+            line=dict(color=colors[i % len(colors)])
+        )
+        traces.append(trace)
 
-    ax.set_xlabel('Time', fontsize=20)
-    ax.set_ylabel('Total Points', fontsize=18)
-    ax.set_title('Points Over Time', fontsize=22)
-    ax.legend(fontsize=20)
-    seoul_tz = pytz.timezone('Asia/Seoul')
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=seoul_tz))
-    ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
-    fig.autofmt_xdate()
-
-    buf = BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    leaderboard_graph = base64.b64encode(buf.getvalue()).decode('utf-8')
-    plt.close(fig)
+    layout = go.Layout(
+        title='Points Over Time',
+        xaxis=dict(title='Time', tickformat='%H:%M'),
+        yaxis=dict(title='Total Points'),
+        plot_bgcolor='#1a1a1a',
+        paper_bgcolor='#1a1a1a',
+        font=dict(color='#f0f0f0')
+    )
+    
+    fig = go.Figure(data=traces, layout=layout)
+    leaderboard_graph = fig.to_json()
 
     rankings = [(i + 1, team.name, team.total_points) for i, team in enumerate(teams)]
 
     context = {
         'teams': teams,
         'leaderboard_graph': leaderboard_graph,
-        'rankings': rankings,
+        'rankings': rankings
     }
 
     return render(request, 'challenges/leaderboard.html', context)
 
 @login_required
 def problem_stats(request):
-    user = request.user
-    
-    # 문제별 해결 횟수 계산
     challenges = Challenge.objects.all()
     challenge_names = [challenge.title for challenge in challenges]
     solve_counts = [Submission.objects.filter(challenge=challenge, correct=True).count() for challenge in challenges]
 
-    # Generate solve counts bar graph
     fig, ax = plt.subplots()
     ax.barh(challenge_names, solve_counts, color='skyblue')
     ax.set_xlabel('Number of Correct Submissions')
@@ -246,29 +229,23 @@ def submission_stats(request):
         messages.error(request, 'You are not part of any team.')
         return redirect("challenges:feeds")
 
-    # Get submissions for the team and calculate submission counts by date
     submissions = Submission.objects.filter(team=team, correct=True).order_by('submitted_at')
     dates = [submission.submitted_at.date() for submission in submissions]
     date_counts = {}
-    for date in dates:
-        if date in date_counts:
-            date_counts[date] += 1
-        else:
-            date_counts[date] = 1
 
-    # Generate submission counts line graph
+    for date in dates:
+        date_counts[date] = date_counts.get(date, 0) + 1
+
     fig, ax = plt.subplots(figsize=(12, 6))
 
     sorted_dates = sorted(date_counts.keys())
     sorted_counts = [date_counts[date] for date in sorted_dates]
 
     ax.plot(sorted_dates, sorted_counts, marker='o', linestyle='-', color='b')
-
     ax.set_title('Correct Submissions Over Time')
     ax.set_xlabel('Date')
     ax.set_ylabel('Number of Correct Submissions')
 
-    # Format x-axis to show date labels clearly
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     ax.xaxis.set_major_locator(mdates.DayLocator())
     fig.autofmt_xdate()

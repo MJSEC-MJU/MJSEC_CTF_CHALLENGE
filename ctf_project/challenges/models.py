@@ -6,7 +6,7 @@ from django.utils import timezone
 class Team(models.Model):
     name = models.CharField(max_length=200)
     members = models.ManyToManyField(User)
-
+    total_points = models.IntegerField(default=0)
     def __str__(self):
         return self.name
 
@@ -39,11 +39,3 @@ class Submission(models.Model):
     def __str__(self):
         return f'{self.user.username} - {self.challenge.title}'
 
-class ScoreHistory(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    team = models.ForeignKey(Team, null=True, blank=True, on_delete=models.SET_NULL)
-    points = models.IntegerField(default=0)
-    timestamp = models.DateTimeField(auto_now_add=True)  # auto_now_add=True is more appropriate
-
-    def __str__(self):
-        return f'{self.user.username} - {self.points} at {self.timestamp}'
