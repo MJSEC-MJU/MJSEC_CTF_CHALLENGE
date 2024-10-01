@@ -14,7 +14,7 @@
             padding: 0;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* Change to flex-start to avoid centering vertically */
             height: 100vh;
         }
         .container {
@@ -24,6 +24,8 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             max-width: 800px;
             width: 100%;
+            overflow: auto; /* Allow scrolling if content overflows */
+            margin-top: 20px; /* Add margin to avoid touching the top */
         }
         h1 {
             text-align: center;
@@ -31,6 +33,7 @@
             margin-bottom: 20px;
         }
         #leaderboard-graph {
+            width: 100%; /* Set width to 100% to fill the container */
             margin-bottom: 30px; /* Space between the graph and table */
             height: 400px; /* Set a height for the graph */
         }
@@ -103,19 +106,38 @@
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ team.name }}</td>
-                    <td>{{ team.total_points }}</td>
+                    <td>{{ team.total_points }}</td> <!-- Change from points to total_points -->
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <div class="mvp-container">
-            <h2>MVP</h2>
-            {% if mvp %}
-                <p>{{ mvp.name }} - {{ mvp.solves }} problems solved</p>
-            {% else %}
-                <p>No MVP yet</p>
-            {% endif %}
-        </div>
+        
+        <h2>MVP</h2>
+        {% if mvp %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Problems Solved</th>
+                        <th>Total Points</th>
+                        <th>First Submission</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in mvp %}
+                    <tr>
+                        <td>{{ player.0 }}</td>
+                        <td>{{ player.1 }}</td>
+                        <td>{{ player.2 }}</td>
+                        <td>{{ player.3|date:"Y-m-d H:i" }}</td> <!-- Formatted date -->
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No MVP yet</p>
+        {% endif %}
+        
         <a href="{% url 'index' %}" class="btn">Back to Home</a>
     </div>
 
