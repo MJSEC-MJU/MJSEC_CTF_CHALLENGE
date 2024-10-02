@@ -221,17 +221,21 @@ def leaderboard(request):
 
     user_stats.sort(key=lambda x: (-x[2], x[3] if x[3] is not None else datetime.datetime.max))
 
-    # 각 팀의 마지막 제출 시간 구하기 (Max를 사용하여 가장 최신 제출 시간 찾기)
-    last_submission_times = submissions.values('team').annotate(last_submission_time=Max('submitted_at'))
+    # 각 팀의 정답 제출 중 마지막 제출 시간 구하기 (Max를 사용하여 정답 제출 중 가장 최신 제출 시간 찾기)
+    last_submission_times = submissions.filter(correct=True).values('team').annotate(last_submission_time=Max('submitted_at'))
 
-    # 팀의 누적 점수를 마지막 제출 시간까지 계산
+    # 팀의 누적 점수를 마지막 정답 제출 시간까지 계산
+    team_last_submission_times = {}
     for team in teams:
         last_submission_time = next(
             (item['last_submission_time'] for item in last_submission_times if item['team'] == team.id),
             None
         )
         if last_submission_time is None:
-            continue  # 이 팀은 제출 기록이 없으므로 건너뜁니다.
+            continue  # 이 팀은 정답 제출 기록이 없으므로 건너뜁니다.
+
+        # 마지막 정답 제출 시간을 기록하여 나중에 정렬에 사용
+        team_last_submission_times[team.name] = last_submission_time
 
         submissions = Submission.objects.filter(team=team, correct=True, submitted_at__lte=last_submission_time).order_by('submitted_at')
 
@@ -251,6 +255,9 @@ def leaderboard(request):
             cumulative_points.append(running_total)
 
         team_time_series_data[team.name] = (sorted_times, cumulative_points)
+
+    # 팀을 마지막 정답 제출 시간 기준으로 정렬 (마지막 정답 제출 시간이 빠를수록 높은 순위)
+    sorted_teams = sorted(teams, key=lambda team: (team.total_points, team_last_submission_times.get(team.name)), reverse=True)
 
     traces = []
     colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F6']
@@ -279,10 +286,11 @@ def leaderboard(request):
     fig = go.Figure(data=traces, layout=layout)
     leaderboard_graph = fig.to_json()
 
-    rankings = [(i + 1, team.name, team.total_points) for i, team in enumerate(teams)]
+    # 정렬된 팀 목록을 기반으로 랭킹 생성
+    rankings = [(i + 1, team.name, team.total_points) for i, team in enumerate(sorted_teams)]
 
     context = {
-        'teams': teams,
+        'teams': sorted_teams,
         'leaderboard_graph': leaderboard_graph,
         'rankings': rankings,
         'mvp': user_stats,
