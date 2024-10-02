@@ -203,18 +203,18 @@ def leaderboard(request):
     user_stats = []
     team_time_series_data = {}
     submissions = Submission.objects.filter(correct=True).select_related('team')
-    user_dict = defaultdict(lambda: {'count': 0, 'first_submission_time': None, 'points': 0})
+    user_dict = defaultdict(lambda: {'count': 0, 'last_submission_time': None, 'points': 0})
 
     for submission in submissions:
         user = submission.user
         user_dict[user]['count'] += 1
         user_dict[user]['points'] += submission.challenge.points
         # First submission time
-        if user_dict[user]['first_submission_time'] is None or submission.submitted_at < user_dict[user]['first_submission_time']:
-            user_dict[user]['first_submission_time'] = submission.submitted_at
+        if user_dict[user]['last_submission_time'] is None or submission.submitted_at > user_dict[user]['last_submission_time']:
+            user_dict[user]['last_submission_time'] = submission.submitted_at
 
     for user, stats in user_dict.items():
-        user_stats.append((user.username, stats['count'], stats['points'], stats['first_submission_time']))
+        user_stats.append((user.username, stats['count'], stats['points'], stats['last_submission_time']))
 
     user_stats.sort(key=lambda x: (-x[2], x[3] if x[3] is not None else datetime.datetime.max))
 

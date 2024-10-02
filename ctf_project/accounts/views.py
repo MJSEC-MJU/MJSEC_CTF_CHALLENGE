@@ -13,7 +13,6 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            messages.success(request, "로그인에 성공했습니다.")
             return redirect('challenges:feeds')
         else:
             messages.error(request, "아이디 또는 패스워드가 올바르지 않습니다.")

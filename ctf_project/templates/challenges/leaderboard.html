@@ -122,7 +122,7 @@
                         <th>Username</th>
                         <th>Problems Solved</th>
                         <th>Total Points</th>
-                        <th>First Submission</th>
+                        <th>Last Submission</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -146,10 +146,20 @@
     <!-- Include Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script>
+        function convertToKST(utcDateString) {
+            const date = new Date(utcDateString);
+            const offsetKST = 9 * 60; // UTC+9, 한국 시간대
+            const kstDate = new Date(date.getTime() + offsetKST * 60 * 1000); // KST로 변환
+            return kstDate.toISOString().replace('T', ' ').slice(0, 19); // 'YYYY-MM-DD HH:MM:SS' 형식
+        }
         // Get the Plotly graph JSON data from Django context
         var graphData = {{ leaderboard_graph|safe }};
         console.log(graphData); // For debugging
-
+        graphData.data.forEach(function(trace) {
+            if (trace.x) {
+                trace.x = trace.x.map(convertToKST); // x축 데이터 변환
+            }   
+        });
         // Plot the graph with white background and custom colors for lines and text
         Plotly.react('leaderboard-graph', graphData.data, {
             ...graphData.layout,

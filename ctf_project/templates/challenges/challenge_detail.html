@@ -8,10 +8,14 @@
     {% load static %}
     <link rel="icon" href="{% static 'images/favicon.ico' %}">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Montserrat:wght@500&display=swap" rel="stylesheet"> <!-- Google Fonts 추가 -->
+    
     <style>
+        /* 기본 스타일 */
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f9;
+            font-family: 'Roboto', sans-serif; /* Roboto 폰트 적용 */
+            background-color: #1a1a1a; /* 어두운 배경 */
+            color: #f0f0f0; /* 텍스트 색상 */
             margin: 0;
             padding: 0;
             display: flex;
@@ -21,51 +25,62 @@
         }
 
         .container {
-            background: white;
-            padding: 20px 40px;
+            background: linear-gradient(135deg, #282c34, #2e3440); /* 그라데이션 배경 */
+            padding: 30px 40px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             max-width: 500px;
             width: 100%;
+            animation: fadeIn 0.5s ease; /* 애니메이션 추가 */
         }
 
         header {
             background: rgb(0, 68, 255);
             border-radius: 5px;
             padding: 10px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
         header h1 {
             text-align: center;
             color: #ffffff;
-            font-size: 40px;
+            font-size: 36px; /* 글자 크기 조정 */
+            margin: 0;
+            font-family: 'Montserrat', sans-serif; /* Montserrat 폰트 적용 */
         }
 
         .challenge-details {
-            margin-top: 20px;
+            display: flex; /* 플렉스박스 사용 */
+            flex-direction: column; /* 세로로 정렬 */
+            align-items: center; /* 수평 중앙 정렬 */
+            margin-top: 5px;
         }
 
         .challenge-details p {
-            color: #666;
-            line-height: 1.6;
+            color: #f0f0f0; /* 통일된 텍스트 색상 */
+            line-height: 1.0;
+            font-size: 16px; /* 글자 크기 조정 */
+            font-weight: 700;
         }
 
         .challenge-details p strong {
-            color: #333;
+            color: #007bff; /* 강조된 텍스트 색상 */
+             /* 굵은 글씨 */
         }
 
         .file-download, .external-link {
             margin-top: 10px;
             padding: 10px;
-            background-color: #e9ecef;
+            background-color: #444; /* 어두운 배경 */
             border-radius: 5px;
             text-align: center;
+            transition: background-color 0.3s; /* 배경 색상 전환 효과 */
         }
 
         .file-download a, .external-link a {
             text-decoration: none;
             color: #007bff;
-            font-weight: bold;
+            font-weight: 500; /* 중간 굵기 */
         }
 
         .file-download a:hover, .external-link a:hover {
@@ -101,9 +116,9 @@
 
         .submit-form {
             display: flex;
-            flex-direction: column;
-            gap: 15px;
+            align-items: center; /* 수직 중앙 정렬 */
             margin-top: 20px;
+            flex-direction: row; /* 가로 방향으로 정렬 */
         }
 
         .submit-form .input-field {
@@ -111,16 +126,26 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 16px;
+            width: 100%; /* 입력 필드가 전체 너비를 차지하도록 설정 */
+            max-width: 500px; /* 최대 너비를 300px로 설정 */
+            background-color: #333; /* 어두운 입력 필드 배경 */
+            color: #f0f0f0; /* 입력 필드 텍스트 색상 */
+            margin-right: 10px; /* 버튼과 간격을 두기 위한 마진 */
         }
 
         .submit-form .btn {
+            display: flex; /* flexbox 사용 */
+            justify-content: center; /* 수평 가운데 정렬 */
+            align-items: center; /* 수직 가운데 정렬 */
             padding: 10px;
             border: none;
             border-radius: 5px;
             background-color: #007bff;
             color: white;
-            font-size: 16px;
+            font-size:20px;
             cursor: pointer;
+            width: 30%; /* 버튼 너비 자동 설정 */
+            transition: background-color 0.3s; /* 버튼 배경 색상 전환 효과 */
         }
 
         .submit-form .btn:hover {
@@ -130,7 +155,6 @@
         .btn-back {
             display: block;
             margin-top: 20px;
-            text-align: center;
             padding: 10px;
             border: none;
             border-radius: 5px;
@@ -138,6 +162,10 @@
             color: white;
             font-size: 16px;
             text-decoration: none;
+            width: 100%; /* 버튼 전체 너비 */
+            max-width: 200px; /* 최대 너비 설정 */
+            transition: background-color 0.3s; /* 버튼 배경 색상 전환 효과 */
+            text-align: center; /* 중앙 정렬 */
         }
 
         .btn-back:hover {
@@ -148,8 +176,16 @@
             font-weight: bold;
             color: #28a745;
             text-align: center;
+            margin-top: 10px;
+        }
+
+        /* 애니메이션 효과 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
+    
 </head>
 <body>
     <div class="container">
@@ -158,11 +194,11 @@
         </header>
         <section class="challenge-details">
             <p>{{ challenge.description }}</p>
-            <p><strong>{{ num_solvers }}명이 해결했습니다</strong></p>
+            <p><strong>{{ num_solvers }}팀이 해결했습니다</strong></p>
             
             {% if challenge.file %}
             <div class="file-download">
-                <a href="{{ challenge.file.url }}" download>파일 다운로드</a>
+                <a href="{{ challenge.file.url }}" download>문제 파일 받기</a>
             </div>
             {% endif %}
             
@@ -185,7 +221,7 @@
             <form method="post" action="{% url 'challenges:submit_flag' %}" class="submit-form">
                 {% csrf_token %}
                 <input type="hidden" name="challenge_id" value="{{ challenge.id }}">
-                <input type="text" name="flag" placeholder="플래그를 입력하세요" class="input-field">
+                <input type="text" name="flag" placeholder="플래그를 입력하세요" class="input-field" required>
                 <button type="submit" class="btn">제출</button>
             </form>
             {% else %}
