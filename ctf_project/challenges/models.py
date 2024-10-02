@@ -38,11 +38,11 @@ class Challenge(models.Model):
         solved_count = Submission.objects.filter(challenge=self, correct=True).values('user_id').distinct().count()
         # 전체 참가자 수를 계산합니다.
         total_participants = Team.objects.filter(members__isnull=False).distinct().count()
-        max_decrement_factor = 0.90
+        max_decrement_factor = 0.9
 
         if total_participants > 1:
             # 점수 감소 비율 계산
-            decrement_factor = max_decrement_factor * (solved_count-1) / total_participants
+            decrement_factor = max_decrement_factor * (solved_count-1) / (total_participants-1)
             decrement_factor = min(decrement_factor, max_decrement_factor)
 
             # 초기 점수에서 점수를 감소시킵니다.

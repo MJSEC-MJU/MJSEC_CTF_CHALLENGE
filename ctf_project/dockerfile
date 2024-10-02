@@ -1,0 +1,21 @@
+# 베이스 이미지로 Python 3.11 사용
+FROM python:3.11
+
+# 작업 디렉토리 설정
+WORKDIR /app
+# 환경 변수를 설정합니다
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# 요구 사항 파일을 컨테이너에 복사
+COPY requirements.txt .
+
+# 필요 패키지 설치
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 프로젝트 파일을 컨테이너에 복사
+COPY . .
+
+# Gunicorn 실행 명령어만 유지
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "ctf_project.wsgi:application"]
