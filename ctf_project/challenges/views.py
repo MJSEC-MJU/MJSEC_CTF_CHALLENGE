@@ -6,6 +6,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Challenge, Submission, Team
+from django.db.models import Max
 import base64
 import datetime
 import pytz
@@ -190,6 +191,8 @@ def update_team_points(team):
     )['total_points'] or 0
     team.total_points = total_points
     team.save()
+from django.db.models import Max
+
 @login_required
 def leaderboard(request):
     # Update teams to ensure they have the latest total points
@@ -218,24 +221,35 @@ def leaderboard(request):
 
     user_stats.sort(key=lambda x: (-x[2], x[3] if x[3] is not None else datetime.datetime.max))
 
-    for team in teams:
-        submissions = Submission.objects.filter(team=team, correct=True).order_by('submitted_at')
-        time_series_data = defaultdict(int)
+    # 각 팀의 마지막 제출 시간 구하기 (Max를 사용하여 가장 최신 제출 시간 찾기)
+    last_submission_times = submissions.values('team').annotate(last_submission_time=Max('submitted_at'))
 
+    # 팀의 누적 점수를 마지막 제출 시간까지 계산
+    for team in teams:
+        last_submission_time = next(
+            (item['last_submission_time'] for item in last_submission_times if item['team'] == team.id),
+            None
+        )
+        if last_submission_time is None:
+            continue  # 이 팀은 제출 기록이 없으므로 건너뜁니다.
+
+        submissions = Submission.objects.filter(team=team, correct=True, submitted_at__lte=last_submission_time).order_by('submitted_at')
+
+        time_series_data = defaultdict(int)
         for submission in submissions:
             timestamp = submission.submitted_at
             points = submission.challenge.points
             time_series_data[timestamp] += points
-        
+
         sorted_times = sorted(time_series_data.keys())
         sorted_points = [time_series_data[time] for time in sorted_times]
-        
+
         cumulative_points = []
         running_total = 0
         for points in sorted_points:
             running_total += points
             cumulative_points.append(running_total)
-        
+
         team_time_series_data[team.name] = (sorted_times, cumulative_points)
 
     traces = []
@@ -261,12 +275,12 @@ def leaderboard(request):
         xaxis_title_font=dict(color='#333333'),
         yaxis_title_font=dict(color='#333333'),
     )
-    
+
     fig = go.Figure(data=traces, layout=layout)
     leaderboard_graph = fig.to_json()
 
     rankings = [(i + 1, team.name, team.total_points) for i, team in enumerate(teams)]
-   
+
     context = {
         'teams': teams,
         'leaderboard_graph': leaderboard_graph,
@@ -275,6 +289,7 @@ def leaderboard(request):
     }
 
     return render(request, 'challenges/leaderboard.html', context)
+
 
 @login_required
 def problem_stats(request):
