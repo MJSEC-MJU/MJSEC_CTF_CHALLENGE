@@ -6,7 +6,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Challenge, Submission, Team
-from django.db.models import Max
+from django.db.models import Max, Min
 import base64
 import datetime
 import pytz
@@ -208,23 +208,24 @@ def leaderboard(request):
     submissions = Submission.objects.filter(correct=True).select_related('team')
     user_dict = defaultdict(lambda: {'count': 0, 'last_submission_time': None, 'points': 0})
 
+    # 사용자 통계 수집
     for submission in submissions:
         user = submission.user
         user_dict[user]['count'] += 1
         user_dict[user]['points'] += submission.challenge.points
-        # First submission time
+        # 첫 제출 시간
         if user_dict[user]['last_submission_time'] is None or submission.submitted_at > user_dict[user]['last_submission_time']:
             user_dict[user]['last_submission_time'] = submission.submitted_at
 
     for user, stats in user_dict.items():
         user_stats.append((user.username, stats['count'], stats['points'], stats['last_submission_time']))
 
+    # 사용자 통계 정렬
     user_stats.sort(key=lambda x: (-x[2], x[3] if x[3] is not None else datetime.datetime.max))
 
-    # 각 팀의 정답 제출 중 마지막 제출 시간 구하기 (Max를 사용하여 정답 제출 중 가장 최신 제출 시간 찾기)
-    last_submission_times = submissions.filter(correct=True).values('team').annotate(last_submission_time=Max('submitted_at'))
+    # 각 팀의 마지막 제출 시간 구하기
+    last_submission_times = submissions.values('team').annotate(last_submission_time=Max('submitted_at'))
 
-    # 팀의 누적 점수를 마지막 정답 제출 시간까지 계산
     team_last_submission_times = {}
     for team in teams:
         last_submission_time = next(
@@ -234,7 +235,7 @@ def leaderboard(request):
         if last_submission_time is None:
             continue  # 이 팀은 정답 제출 기록이 없으므로 건너뜁니다.
 
-        # 마지막 정답 제출 시간을 기록하여 나중에 정렬에 사용
+        # 마지막 제출 시간을 기록
         team_last_submission_times[team.name] = last_submission_time
 
         submissions = Submission.objects.filter(team=team, correct=True, submitted_at__lte=last_submission_time).order_by('submitted_at')
@@ -256,9 +257,13 @@ def leaderboard(request):
 
         team_time_series_data[team.name] = (sorted_times, cumulative_points)
 
-    # 팀을 마지막 정답 제출 시간 기준으로 정렬 (마지막 정답 제출 시간이 빠를수록 높은 순위)
-    sorted_teams = sorted(teams, key=lambda team: (team.total_points, team_last_submission_times.get(team.name)), reverse=True)
+    # 팀을 총 점수 및 마지막 제출 시간 기준으로 정렬 (점수가 동일할 경우 마지막 제출 시간이 빠른 팀이 우선)
+    sorted_teams = sorted(teams, key=lambda team: (
+        -team.total_points,  # 총 점수 기준 정렬 (내림차순)
+        team_last_submission_times.get(team.name)  # 마지막 성공 제출 시간 기준 정렬 (오름차순)
+    ))
 
+    # 팀별 포인트 변화 그래프 생성
     traces = []
     colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F6']
 
@@ -274,7 +279,7 @@ def leaderboard(request):
 
     layout = go.Layout(
         title='Points Over Time',
-        xaxis=dict(title='Time', tickformat='%H:%M'),
+        xaxis=dict(title='Time', tickformat='%H:%M:%S'),  # 초 단위 표시
         yaxis=dict(title='Total Points'),
         plot_bgcolor='#ffffff',
         paper_bgcolor='#ffffff',
@@ -286,8 +291,11 @@ def leaderboard(request):
     fig = go.Figure(data=traces, layout=layout)
     leaderboard_graph = fig.to_json()
 
-    # 정렬된 팀 목록을 기반으로 랭킹 생성
-    rankings = [(i + 1, team.name, team.total_points) for i, team in enumerate(sorted_teams)]
+    # 정렬된 팀 목록을 기반으로 랭킹 생성 및 마지막 제출 시간 포함
+    rankings = [
+        (i + 1, team.name, team.total_points, team_last_submission_times.get(team.name)) 
+        for i, team in enumerate(sorted_teams)
+    ]
 
     context = {
         'teams': sorted_teams,
@@ -297,6 +305,9 @@ def leaderboard(request):
     }
 
     return render(request, 'challenges/leaderboard.html', context)
+
+
+
 
 
 @login_required

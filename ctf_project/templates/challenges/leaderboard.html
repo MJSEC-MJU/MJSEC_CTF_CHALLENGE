@@ -16,7 +16,7 @@
             padding: 0;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Change to flex-start to avoid centering vertically */
+            align-items: flex-start;
             height: 100vh;
         }
         .container {
@@ -26,8 +26,8 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             max-width: 800px;
             width: 100%;
-            overflow: auto; /* Allow scrolling if content overflows */
-            margin-top: 20px; /* Add margin to avoid touching the top */
+            overflow: auto;
+            margin-top: 20px;
         }
         h1 {
             text-align: center;
@@ -35,9 +35,9 @@
             margin-bottom: 20px;
         }
         #leaderboard-graph {
-            width: 100%; /* Set width to 100% to fill the container */
-            margin-bottom: 30px; /* Space between the graph and table */
-            height: 400px; /* Set a height for the graph */
+            width: 100%;
+            margin-bottom: 30px;
+            height: 400px;
         }
         table {
             width: 100%;
@@ -47,7 +47,7 @@
         table th, table td {
             padding: 15px;
             text-align: left;
-            border: 1px solid #000; /* Set border color to black */
+            border: 1px solid #000;
         }
         table th {
             background-color: #007bff;
@@ -93,7 +93,7 @@
 <body>
     <div class="container">
         <h1>Leaderboard</h1>
-        <div id="leaderboard-graph"></div> <!-- Container for the Plotly graph -->
+        <div id="leaderboard-graph"></div>
         <h2>Team Rankings</h2>
         <table>
             <thead>
@@ -101,14 +101,16 @@
                     <th>Rank</th>
                     <th>Team Name</th>
                     <th>Total Points</th>
+                    <th>Last Submission</th> <!-- 제출 시간을 위한 새로운 열 추가 -->
                 </tr>
             </thead>
             <tbody>
-                {% for team in teams %}
+                {% for rank in rankings %}
                 <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>{{ team.name }}</td>
-                    <td>{{ team.total_points }}</td> <!-- Change from points to total_points -->
+                    <td>{{ rank.0 }}</td>
+                    <td>{{ rank.1 }}</td>
+                    <td>{{ rank.2 }}</td>
+                    <td>{{ rank.3|date:"Y-m-d H:i:s" }}</td> <!-- 포맷팅된 제출 시간 -->
                 </tr>
                 {% endfor %}
             </tbody>
@@ -131,7 +133,7 @@
                         <td>{{ player.0 }}</td>
                         <td>{{ player.1 }}</td>
                         <td>{{ player.2 }}</td>
-                        <td>{{ player.3|date:"Y-m-d H:i" }}</td> <!-- Formatted date -->
+                        <td>{{ player.3|date:"Y-m-d H:i" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -149,35 +151,35 @@
         function convertToKST(utcDateString) {
             const date = new Date(utcDateString);
             const offsetKST = 9 * 60; // UTC+9, 한국 시간대
-            const kstDate = new Date(date.getTime() + offsetKST * 60 * 1000); // KST로 변환
-            return kstDate.toISOString().replace('T', ' ').slice(0, 19); // 'YYYY-MM-DD HH:MM:SS' 형식
+            const kstDate = new Date(date.getTime() + offsetKST * 60 * 1000);
+            return kstDate.toISOString().replace('T', ' ').slice(0, 19);
         }
         // Get the Plotly graph JSON data from Django context
         var graphData = {{ leaderboard_graph|safe }};
         console.log(graphData); // For debugging
         graphData.data.forEach(function(trace) {
             if (trace.x) {
-                trace.x = trace.x.map(convertToKST); // x축 데이터 변환
+                trace.x = trace.x.map(convertToKST);
             }   
         });
         // Plot the graph with white background and custom colors for lines and text
         Plotly.react('leaderboard-graph', graphData.data, {
             ...graphData.layout,
-            plot_bgcolor: '#ffffff', // Set plot background color to white
-            paper_bgcolor: '#ffffff', // Set paper background color to white
+            plot_bgcolor: '#ffffff',
+            paper_bgcolor: '#ffffff',
             font: {
-                color: '#333333' // Set font color for text
+                color: '#333333'
             },
             xaxis: {
-                linecolor: '#000000', // Set x-axis line color
+                linecolor: '#000000',
                 tickfont: {
-                    color: '#333333' // Set x-axis tick font color
+                    color: '#333333'
                 }
             },
             yaxis: {
-                linecolor: '#000000', // Set y-axis line color
+                linecolor: '#000000',
                 tickfont: {
-                    color: '#333333' // Set y-axis tick font color
+                    color: '#333333'
                 }
             },
             margin: {
