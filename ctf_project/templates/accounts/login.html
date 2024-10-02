@@ -1,91 +1,144 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <title>Login</title>
+    <title>로그인 | MJSEC CTF</title>
+    <link rel="icon" href="{% static 'images/favicon.ico' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f9;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            font-family: 'Roboto', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            padding: 20px;
         }
 
-        .login-container {
-            background: white;
-            padding: 40px 60px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
+        .container {
+            background-color: #222;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
             width: 100%;
-        }
-
-        .login-container h1 {
+            max-width: 400px;
             text-align: center;
-            margin-bottom: 20px;
-            color: #333;
         }
 
-        .login-container form {
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo img {
+            max-width: 120px;
+            height: auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+            color: #61dafb;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        form {
             display: flex;
             flex-direction: column;
             gap: 15px;
         }
 
-        .login-container form p {
-            margin: 0;
-        }
-
-        .login-container label {
+        label {
+            font-size: 0.9rem;
+            color: #f0f0f0;
             text-align: left;
-            display: block;
             margin-bottom: 5px;
-            color: #666;
-            font-size: 14px;
         }
 
-        .login-container input[type="text"],
-        .login-container input[type="password"] {
-            padding: 10px;
-            border: 1px solid #ccc;
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #444;
             border-radius: 5px;
-            font-size: 16px;
-            width: 95%;
-            
+            background-color: #333;
+            color: #f0f0f0;
+            font-size: 1rem;
+            box-sizing: border-box;
         }
 
-        .btn {
-            margin-top: 10px;
-            padding: 10px;
+        button {
+            background-color: #61dafb;
+            color: #1a1a1a;
             border: none;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 500;
             border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            font-size: 16px;
             cursor: pointer;
-    
+            transition: background-color 0.3s;
+            width: 100%;
         }
 
-        .btn:hover {
-            background-color: #0056b3;
+        button:hover {
+            background-color: #4ea5cf;
+        }
+
+        .messages {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        .messages li {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: #ff6b6b;
+            color: #1a1a1a;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .messages .success {
+            background-color: #2dce89;
+            color: #1a1a1a;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h1>Login</h1>
+    <div class="container">
+        <!-- 로고 부분 -->
+        <div class="logo">
+            <img src="{% static 'images/logo.png' %}" alt="로고">
+        </div>
+        <!-- 제목 부분 -->
+        <h1>MJSEC CTF</h1>
+        <h2>Login</h2>
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn">Login</button>
+            <label for="username">아이디:</label>
+            <input type="text" id="username" name="username" required>
+            <label for="password">패스워드:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">로그인</button>
         </form>
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
     </div>
 </body>
 </html>

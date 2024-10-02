@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="icon" href="{% static 'images/favicon.ico' %}">
     <title>Leaderboard</title>
     <style>
         body {
@@ -92,7 +94,7 @@
     <div class="container">
         <h1>Leaderboard</h1>
         <div id="leaderboard-graph"></div> <!-- Container for the Plotly graph -->
-        <h2>Rankings</h2>
+        <h2>Team Rankings</h2>
         <table>
             <thead>
                 <tr>
