@@ -18,6 +18,7 @@ from collections import defaultdict
 from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
+from django.http import JsonResponse
 def index(request):
     if request.user.is_authenticated:
         return redirect("challenges:feeds")  
@@ -306,6 +307,132 @@ def leaderboard(request):
 
     return render(request, 'challenges/leaderboard.html', context)
 
+
+import pytz
+KST = pytz.timezone('Asia/Seoul')
+
+@login_required
+def leaderboard_data(request):
+    teams = Team.objects.all()
+    for team in teams:
+        update_team_points(team)
+    teams = teams.order_by('-total_points', 'name')
+
+    submissions = Submission.objects.filter(correct=True).select_related('team')
+    user_dict = defaultdict(lambda: {'count': 0, 'last_submission_time': None, 'points': 0})
+
+    for submission in submissions:
+        user = submission.user
+        user_dict[user]['count'] += 1
+        user_dict[user]['points'] += submission.challenge.points
+        if user_dict[user]['last_submission_time'] is None or submission.submitted_at > user_dict[user]['last_submission_time']:
+            user_dict[user]['last_submission_time'] = submission.submitted_at
+
+    user_stats = []
+    for user, stats in user_dict.items():
+        user_stats.append((user.username, stats['count'], stats['points'], stats['last_submission_time']))
+
+    user_stats.sort(key=lambda x: (-x[2], x[3] if x[3] else datetime.datetime.max))
+
+    last_submission_times = submissions.values('team').annotate(last_submission_time=Max('submitted_at'))
+    team_last_submission_times = {}
+    for team in teams:
+        last_submission_time = next(
+            (item['last_submission_time'] for item in last_submission_times if item['team'] == team.id),
+            None
+        )
+        if last_submission_time is not None:
+            team_last_submission_times[team.name] = last_submission_time
+
+    sorted_teams = sorted(teams, key=lambda team: (
+        -team.total_points,
+        team_last_submission_times.get(team.name) or datetime.datetime.max
+    ))
+
+    rankings = [
+        (i + 1, team.name, team.total_points, team_last_submission_times.get(team.name))
+        for i, team in enumerate(sorted_teams)
+    ]
+
+    # 그래프용 데이터 생성
+    team_time_series_data = {}
+    for team in sorted_teams:
+        last_submission_time = team_last_submission_times.get(team.name)
+        if last_submission_time is None:
+            continue
+        team_subs = Submission.objects.filter(team=team, correct=True, submitted_at__lte=last_submission_time).order_by('submitted_at')
+        time_series_data = defaultdict(int)
+        for tsb in team_subs:
+            timestamp = tsb.submitted_at
+            points = tsb.challenge.points
+            time_series_data[timestamp] += points
+
+        sorted_times = sorted(time_series_data.keys())
+        sorted_points = [time_series_data[t] for t in sorted_times]
+
+        cumulative_points = []
+        running_total = 0
+        for p in sorted_points:
+            running_total += p
+            cumulative_points.append(running_total)
+
+        team_time_series_data[team.name] = (sorted_times, cumulative_points)
+
+    traces = []
+    colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F6']
+    for i, (team_name, (times, points)) in enumerate(team_time_series_data.items()):
+        # times는 UTC datetime, KST로 변환 필요 시 다음과 같이 변환 가능
+        # 하지만 Plotly에서는 ISO시간을 그대로 UTC로 두고, 클라이언트에서 표시를 바꿀 수도 있음.
+        # 여기서는 그래프는 기존대로 UTC나 ISO로 두고, 표만 KST로 보여주도록 하겠습니다.
+        # 굳이 그래프 x축도 KST로 바꾸려면 times를 KST로 변환 후 isoformat() 하면 됩니다.
+        trace = go.Scatter(
+            x=[t.isoformat() for t in times],
+            y=points,
+            mode='lines+markers',
+            name=team_name,
+            line=dict(color=colors[i % len(colors)]),
+        )
+        traces.append(trace)
+
+    layout = go.Layout(
+        title='Points Over Time',
+        xaxis=dict(title='Time', tickformat='%H:%M:%S'),
+        yaxis=dict(title='Total Points'),
+        plot_bgcolor='#ffffff',
+        paper_bgcolor='#ffffff',
+        font=dict(color='#333333'),
+        xaxis_title_font=dict(color='#333333'),
+        yaxis_title_font=dict(color='#333333'),
+        margin=dict(l=50, r=50, t=50, b=50)
+    )
+
+    fig = go.Figure(data=traces, layout=layout)
+    leaderboard_graph_json = fig.to_json()
+
+    rankings_json = []
+    for r, t_name, pts, last_sub in rankings:
+        if last_sub:
+            # KST 변환
+            last_sub_kst = last_sub.astimezone(KST)
+            last_sub_str = last_sub_kst.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            last_sub_str = ""
+        rankings_json.append([r, t_name, pts, last_sub_str])
+
+    mvp_json = []
+    for username, solved, pts, last_sub in user_stats:
+        if last_sub:
+            last_sub_kst = last_sub.astimezone(KST)
+            last_sub_str = last_sub_kst.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            last_sub_str = ""
+        mvp_json.append([username, solved, pts, last_sub_str])
+
+    return JsonResponse({
+        'rankings': rankings_json,
+        'mvp': mvp_json,
+        'graph': leaderboard_graph_json,
+    })
 
 
 

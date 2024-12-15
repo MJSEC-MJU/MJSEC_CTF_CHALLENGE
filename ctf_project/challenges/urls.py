@@ -7,6 +7,7 @@ urlpatterns = [
     path('challenge/<int:challenge_id>/', views.challenge_detail, name='challenge_detail'),
     path('submit/', views.submit_flag, name='submit_flag'),
     path('leaderboard/', views.leaderboard, name='leaderboard'),
+    path('leaderboard_data/', views.leaderboard_data, name='leaderboard_data'),
     path('problem_stats/', views.problem_stats, name='problem_stats'),
     path('submission_stats/', views.submission_stats, name='submission_stats'),
 ]
