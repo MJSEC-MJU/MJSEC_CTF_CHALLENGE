@@ -5,7 +5,7 @@ from django.db.models import Sum, Case, When
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Challenge, Submission, Team
+from .models import Challenge, Submission, Team, Category
 from django.db.models import Max, Min
 import base64
 import datetime
@@ -29,17 +29,29 @@ def index(request):
 def feeds(request):
     user = request.user
     team = user.team_set.first()
+    categories = Category.objects.all()
 
-    if not team:
-        challenges = Challenge.objects.all()
-        solved_challenges = []
+    category_id = request.GET.get('category')
+    if category_id:
+        current_category = get_object_or_404(Category, pk=category_id)
+        challenges = Challenge.objects.filter(category=current_category)
     else:
+        current_category = None
         challenges = Challenge.objects.all()
-        solved_challenges = Submission.objects.filter(team=team, correct=True).values_list('challenge_id', flat=True)
+
+    # 팀이 있으면 푼 문제, 없으면 빈 리스트
+    if team:
+        solved_challenges = Submission.objects.filter(
+            team=team, correct=True
+        ).values_list('challenge_id', flat=True)
+    else:
+        solved_challenges = []
     
     context = {
         'challenges': challenges,
         'solved_challenges': solved_challenges,
+        'categories': categories,
+        'current_category': current_category,
     }
     return render(request, 'challenges/feeds.html', context)
 
@@ -78,6 +90,7 @@ def challenge_detail(request, challenge_id):
         'challenge': challenge,
         'num_solvers': num_solvers,
         'solved': solved,
+        'categories': Category.objects.all(),
     }
     return render(request, 'challenges/challenge_detail.html', context)
 

@@ -2,6 +2,16 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name_plural = "Categories"
+
+    def __str__(self):
+        return self.name
 # 모델 추가: Team
 class Team(models.Model):
     name = models.CharField(max_length=200)
@@ -22,7 +32,13 @@ class Challenge(models.Model):
     end_time = models.DateTimeField()  # 명시적으로 설정되도록 기본값 제거
     file = models.FileField(upload_to='challenge_files/', blank=True, null=True)
     url = models.URLField(blank=True, null=True)
-
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='challenges'
+    )
     def __str__(self):
         return self.title
 
