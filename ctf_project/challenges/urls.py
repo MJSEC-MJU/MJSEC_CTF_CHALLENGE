@@ -10,4 +10,6 @@ urlpatterns = [
     path('leaderboard_data/', views.leaderboard_data, name='leaderboard_data'),
     path('problem_stats/', views.problem_stats, name='problem_stats'),
     path('submission_stats/', views.submission_stats, name='submission_stats'),
+    path('team/', views.team_page, name='team_page'),
+    path('countdown/', views.countdown, name='countdown'),
 ]

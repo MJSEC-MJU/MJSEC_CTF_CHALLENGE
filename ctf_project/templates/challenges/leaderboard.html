@@ -5,156 +5,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% load static %}
     <link rel="icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <title>Leaderboard</title>
-    <style>
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background: #f0f2f5;
-            margin: 0;
-            padding: 0;
-        }
-
-        .container {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            max-width: 1000px;
-            width: 90%;
-            margin: 40px auto;
-            padding: 30px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            font-size: 2.2em;
-            margin-bottom: 30px;
-            letter-spacing: 1px;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 15px;
-        }
-
-        h2 {
-            color: #333;
-            font-size: 1.5em;
-            margin-bottom: 20px;
-            margin-top: 40px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
-        }
-
-        #leaderboard-graph {
-            width: 100%;
-            height: 400px;
-            margin-bottom: 30px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: #fff;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        table thead {
-            background: #007bff;
-            color: #fff;
-        }
-
-        table th, table td {
-            padding: 15px;
-            text-align: left;
-        }
-
-        table th {
-            font-weight: 600;
-        }
-
-        table tr:nth-child(even) {
-            background-color: #f8f9fb;
-        }
-
-        table tr:hover {
-            background-color: #e6f2ff;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            margin-top: 40px;
-            background: #0a1522dc;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: background 0.3s;
-        }
-
-        .btn:hover {
-            background: #0056b3;
-        }
-
-        p {
-            margin: 20px 0;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Leaderboard</h1>
-        <div id="leaderboard-graph"></div>
+    <div class="page-shell">
+        <header class="app-header">
+            <div class="brand">
+                <img src="{% static 'images/logo-clear.png' %}" alt="MJSEC 로고">
+                <div>
+                    <h1>Live Leaderboard</h1>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <a href="{% url 'challenges:feeds' %}" class="btn btn-ghost">Challenge Board</a>
+                <a href="{% url 'accounts:logout' %}" class="btn btn-ghost">Logout</a>
+            </div>
+        </header>
 
-        <h2>Team Rankings</h2>
-        <table id="team-rankings">
-            <thead>
-                <tr>
-                    <th>Rank</th>
-                    <th>Team Name</th>
-                    <th>Total Points</th>
-                    <th>Last Submission</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for rank in rankings %}
-                <tr>
-                    <td>{{ rank.0 }}</td>
-                    <td>{{ rank.1 }}</td>
-                    <td>{{ rank.2 }}</td>
-                    <td>{{ rank.3|date:"Y-m-d H:i:s" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="panel">
+            <div id="leaderboard-graph" class="graph"></div>
+        </div>
 
-        <h2>MVP</h2>
-        {% if mvp %}
-            <table id="mvp-table">
-                <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Problems Solved</th>
-                        <th>Total Points</th>
-                        <th>Last Submission</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for player in mvp %}
-                    <tr>
-                        <td>{{ player.0 }}</td>
-                        <td>{{ player.1 }}</td>
-                        <td>{{ player.2 }}</td>
-                        <td>{{ player.3|date:"Y-m-d H:i:s" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No MVP yet</p>
-        {% endif %}
+        <div class="leaderboard-shell">
+            <div class="panel">
+                <div class="detail-header">
+                    <h2>Team Rankings</h2>
+                </div>
+                <table id="team-rankings" class="table">
+                    <colgroup>
+                        <col style="width:12%">
+                        <col style="width:34%">
+                        <col style="width:18%">
+                        <col style="width:36%">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team Name</th>
+                            <th>Total Points</th>
+                            <th>Last Submission</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rank in rankings %}
+                        <tr>
+                            <td>{{ rank.0 }}</td>
+                            <td>{{ rank.1 }}</td>
+                            <td>{{ rank.2 }}</td>
+                            <td>{{ rank.3|date:"Y-m-d H:i:s" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-        <a href="{% url 'index' %}" class="btn">Back to Home</a>
+            <div class="panel">
+                <div class="detail-header">
+                    <h2>MVP</h2>
+                </div>
+                {% if mvp %}
+                    <table id="mvp-table" class="table">
+                        <colgroup>
+                            <col style="width:24%">
+                            <col style="width:22%">
+                            <col style="width:18%">
+                            <col style="width:36%">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Problems Solved</th>
+                                <th>Total Points</th>
+                                <th>Last Submission</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in mvp %}
+                            <tr>
+                                <td>{{ player.0 }}</td>
+                                <td>{{ player.1 }}</td>
+                                <td>{{ player.2 }}</td>
+                                <td>{{ player.3|date:"Y-m-d H:i:s" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="muted">아직 MVP가 없습니다.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="footer-actions">
+            <a href="{% url 'challenges:index' %}" class="btn btn-primary">Home</a>
+        </div>
     </div>
 
     <!-- Include Plotly.js -->
@@ -176,18 +121,33 @@
     
         Plotly.react('leaderboard-graph', initialGraphData.data, {
             ...initialGraphData.layout,
-            plot_bgcolor: '#ffffff',
-            paper_bgcolor: '#ffffff',
-            font: { color: '#333333' },
+            plot_bgcolor: 'rgba(5, 10, 24, 0.6)',
+            paper_bgcolor: 'rgba(0, 0, 0, 0)',
+            font: {
+                color: '#c8e7ff',
+                family: "'Space Grotesk', 'Noto Sans KR', sans-serif",
+                size: 13
+            },
             xaxis: {
-                linecolor: '#000000',
-                tickfont: { color: '#333333' }
+                gridcolor: 'rgba(0, 134, 209, 0.15)',
+                linecolor: 'rgba(0, 178, 255, 0.4)',
+                tickfont: { color: '#9fd6ff', size: 12 },
+                zerolinecolor: 'rgba(0, 134, 209, 0.3)',
+                showgrid: true
             },
             yaxis: {
-                linecolor: '#000000',
-                tickfont: { color: '#333333' }
+                gridcolor: 'rgba(0, 134, 209, 0.15)',
+                linecolor: 'rgba(0, 178, 255, 0.4)',
+                tickfont: { color: '#9fd6ff', size: 12 },
+                zerolinecolor: 'rgba(0, 134, 209, 0.3)',
+                showgrid: true
             },
-            margin: { l:50, r:50, t:50, b:50 }
+            margin: { l:60, r:40, t:40, b:80 },
+            hoverlabel: {
+                bgcolor: 'rgba(0, 38, 102, 0.95)',
+                bordercolor: 'rgba(0, 178, 255, 0.8)',
+                font: { color: '#eaf1fb', size: 13 }
+            }
         });
     
         function fetchDataAndUpdateTables() {
@@ -239,18 +199,33 @@
     
                 Plotly.react('leaderboard-graph', updatedGraph.data, {
                     ...updatedGraph.layout,
-                    plot_bgcolor: '#ffffff',
-                    paper_bgcolor: '#ffffff',
-                    font: { color: '#333333' },
+                    plot_bgcolor: 'rgba(5, 10, 24, 0.6)',
+                    paper_bgcolor: 'rgba(0, 0, 0, 0)',
+                    font: {
+                        color: '#c8e7ff',
+                        family: "'Space Grotesk', 'Noto Sans KR', sans-serif",
+                        size: 13
+                    },
                     xaxis: {
-                        linecolor: '#000000',
-                        tickfont: { color: '#333333' }
+                        gridcolor: 'rgba(0, 134, 209, 0.15)',
+                        linecolor: 'rgba(0, 178, 255, 0.4)',
+                        tickfont: { color: '#9fd6ff', size: 12 },
+                        zerolinecolor: 'rgba(0, 134, 209, 0.3)',
+                        showgrid: true
                     },
                     yaxis: {
-                        linecolor: '#000000',
-                        tickfont: { color: '#333333' }
+                        gridcolor: 'rgba(0, 134, 209, 0.15)',
+                        linecolor: 'rgba(0, 178, 255, 0.4)',
+                        tickfont: { color: '#9fd6ff', size: 12 },
+                        zerolinecolor: 'rgba(0, 134, 209, 0.3)',
+                        showgrid: true
                     },
-                    margin: { l:50, r:50, t:50, b:50 }
+                    margin: { l:60, r:40, t:40, b:80 },
+                    hoverlabel: {
+                        bgcolor: 'rgba(0, 38, 102, 0.95)',
+                        bordercolor: 'rgba(0, 178, 255, 0.8)',
+                        font: { color: '#eaf1fb', size: 13 }
+                    }
                 });
             })
             .catch(error => console.error("Error fetching data:", error));
@@ -260,6 +235,9 @@
         fetchDataAndUpdateTables();
         setInterval(fetchDataAndUpdateTables, 1000);
     </script>
-    
+    <footer class="site-footer">
+        <span>Myongji University Hacking Club MJSEC · <a href="https://mjsec.kr" target="_blank">mjsec.kr</a></span>
+        <span>Made by <a href="https://github.com/jongcoding" target="_blank">jongcoding</a></span>
+    </footer>
 </body>
 </html>

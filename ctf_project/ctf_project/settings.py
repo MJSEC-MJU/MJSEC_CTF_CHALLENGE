@@ -20,7 +20,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ''
+# 환경변수 DJANGO_SECRET_KEY 가 있으면 우선 사용하고, 없으면 기본값을 사용합니다.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'mjsec-ctf-default-secret-key-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -49,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'challenges.middleware.CTFWindowMiddleware',
 ]
 
 ROOT_URLCONF = 'ctf_project.urls'

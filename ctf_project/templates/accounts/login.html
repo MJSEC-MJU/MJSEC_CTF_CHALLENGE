@@ -5,140 +5,94 @@
     <meta charset="UTF-8">
     <title>로그인 | MJSEC CTF</title>
     <link rel="icon" href="{% static 'images/favicon.ico' %}">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            background-color: #1a1a1a;
-            color: #f0f0f0;
-            font-family: 'Roboto', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            background-color: #222;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-
-        .logo {
-            margin-bottom: 20px;
-        }
-
-        .logo img {
-            max-width: 120px;
-            height: auto;
-        }
-
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            font-weight: 700;
-            color: #61dafb;
-        }
-
-        h2 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        label {
-            font-size: 0.9rem;
-            color: #f0f0f0;
-            text-align: left;
-            margin-bottom: 5px;
-        }
-
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #444;
-            border-radius: 5px;
-            background-color: #333;
-            color: #f0f0f0;
-            font-size: 1rem;
-            box-sizing: border-box;
-        }
-
-        button {
-            background-color: #61dafb;
-            color: #1a1a1a;
-            border: none;
-            padding: 12px;
-            font-size: 1rem;
-            font-weight: 500;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            width: 100%;
-        }
-
-        button:hover {
-            background-color: #4ea5cf;
-        }
-
-        .messages {
-            list-style: none;
-            padding: 0;
-            margin: 20px 0;
-            width: 100%;
-        }
-
-        .messages li {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            background-color: #ff6b6b;
-            color: #1a1a1a;
-            text-align: center;
-            font-size: 0.9rem;
-        }
-
-        .messages .success {
-            background-color: #2dce89;
-            color: #1a1a1a;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-    <div class="container">
-        <!-- 로고 부분 -->
-        <div class="logo">
-            <img src="{% static 'images/logo.png' %}" alt="로고">
+    <div class="auth-shell" id="authShell">
+        <div class="neon-rain"></div>
+        <div class="auth-ambient">
+            <span class="orb blue"></span>
+            <span class="orb navy"></span>
+            <div class="data-stream" style="left: 15%; animation-delay: 0s;"></div>
+            <div class="data-stream" style="left: 40%; animation-delay: -4s;"></div>
+            <div class="data-stream" style="left: 65%; animation-delay: -2s;"></div>
+            <div class="data-stream" style="left: 85%; animation-delay: -6s;"></div>
         </div>
-        <!-- 제목 부분 -->
-        <h1>MJSEC CTF</h1>
-        <h2>Login</h2>
-        <form method="post">
-            {% csrf_token %}
-            <label for="username">아이디:</label>
-            <input type="text" id="username" name="username" required>
-            <label for="password">패스워드:</label>
-            <input type="password" id="password" name="password" required>
-            <button type="submit">로그인</button>
-        </form>
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li class="{{ message.tags }}">{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+        <div class="success-overlay" id="successOverlay">
+            <div class="success-scan"></div>
+            <div class="success-text">ACCESS GRANTED</div>
+            <div class="success-particles"></div>
+        </div>
+        <div class="auth-card auth-card-neo">
+            <div class="brand brand-center">
+                <img src="{% static 'images/logo-clear.png' %}" alt="MJSEC 로고">
+                <div>
+                    <h1>MJSEC CTF</h1>
+                </div>
+            </div>
+            <div class="accent-line" style="margin-top: 18px;"></div>
+            <form method="post" style="margin-top:18px;" id="loginForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username">USERNAME</label>
+                    <input type="text" id="username" name="username" class="input-control" required placeholder="사용자 아이디 입력">
+                </div>
+                <div class="form-group">
+                    <label for="password">PASSWORD</label>
+                    <input type="password" id="password" name="password" class="input-control" required placeholder="패스워드 입력">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="loginBtn" style="margin-top:18px;">
+                    <span class="btn-text">ACCESS SYSTEM</span>
+                    <span class="btn-loading" style="display: none;">ACCESSING...</span>
+                </button>
+            </form>
+            {% if messages %}
+                <ul class="messages auth">
+                    {% for message in messages %}
+                        <li class="{{ message.tags }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
     </div>
+    <footer class="site-footer">
+        <span>Myongji University Hacking Club MJSEC · <a href="https://mjsec.kr" target="_blank">mjsec.kr</a></span>
+        <span>Made by <a href="https://github.com/jongcoding" target="_blank">jongcoding</a></span>
+    </footer>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const btn = document.getElementById('loginBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            const authShell = document.getElementById('authShell');
+            const successOverlay = document.getElementById('successOverlay');
+            const authCard = document.querySelector('.auth-card');
+
+            // 버튼 상태 변경
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+
+            // 로그인 시도 시 글리치 효과
+            authShell.classList.add('login-attempt');
+
+            // 성공 애니메이션 시퀀스 (실제로는 서버 응답 확인 후 실행)
+            setTimeout(function() {
+                // 1단계: 글리치 효과
+                authShell.classList.add('login-glitch');
+
+                setTimeout(function() {
+                    // 2단계: SUCCESS GRANTED 표시
+                    successOverlay.classList.add('active');
+                    authCard.classList.add('dissolve');
+
+                    setTimeout(function() {
+                        // 3단계: 화면 전체 페이드아웃
+                        authShell.classList.add('login-success');
+                    }, 1500);
+                }, 400);
+            }, 300);
+        });
+    </script>
 </body>
 </html>

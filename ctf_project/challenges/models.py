@@ -12,6 +12,19 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CTFConfig(models.Model):
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "CTF Schedule"
+        verbose_name_plural = "CTF Schedule"
+
+    def __str__(self):
+        return "CTF 일정 설정"
+
 # 모델 추가: Team
 class Team(models.Model):
     name = models.CharField(max_length=200)
@@ -56,17 +69,18 @@ class Challenge(models.Model):
         total_participants = Team.objects.filter(members__isnull=False).distinct().count()
         max_decrement_factor = 0.9
 
-        if total_participants > 1:
-            # 점수 감소 비율 계산
-            decrement_factor = max_decrement_factor * (solved_count-1) / (total_participants-1)
-            decrement_factor = min(decrement_factor, max_decrement_factor)
+        # 정답 제출자가 없거나 참가 팀이 1팀 이하이면 점수를 변경하지 않습니다.
+        if total_participants <= 1 or solved_count <= 1:
+            new_points = self.initial_points
+        else:
+            # 점수 감소 비율 계산 (최소 0으로 유지)
+            decrement_factor = max_decrement_factor * (solved_count - 1) / (total_participants - 1)
+            decrement_factor = min(max(decrement_factor, 0), max_decrement_factor)
 
             # 초기 점수에서 점수를 감소시킵니다.
             new_points = self.initial_points * (1 - decrement_factor)
             # 최소 점수 이하로 떨어지지 않도록 합니다.
             new_points = max(new_points, self.min_points)
-        else:
-            new_points = self.initial_points  # 참가자가 1명 이하인 경우 초기 점수 유지
 
         # 점수를 업데이트합니다.
         Challenge.objects.filter(pk=self.pk).update(points=new_points)

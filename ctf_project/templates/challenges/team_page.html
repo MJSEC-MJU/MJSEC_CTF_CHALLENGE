@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load static %}
+    <link rel="icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>{{ team.name }} | MJSEC CTF</title>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="app-header">
+            <div class="brand">
+                <img src="{% static 'images/logo-clear.png' %}" alt="MJSEC 로고">
+                <div>
+                    <h1>{{ team.name }}</h1>
+                    <small>Rank #{{ team_rank }} / {{ total_teams }}</small>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <a href="{% url 'challenges:feeds' %}" class="btn btn-ghost">Challenge Board</a>
+                <a href="{% url 'challenges:leaderboard' %}" class="btn btn-ghost">Leaderboard</a>
+                <a href="{% url 'accounts:logout' %}" class="btn btn-ghost">Logout</a>
+            </div>
+        </header>
+
+        <section class="hero">
+            <div class="hero-copy">
+                <h2>Team Overview</h2>
+            </div>
+        </section>
+
+        <div class="leaderboard-shell">
+            <!-- Team Statistics -->
+            <div class="panel">
+                <div class="detail-header">
+                    <h2>Team Statistics</h2>
+                </div>
+                <div class="stat-row">
+                    <span class="pill"><strong>{{ team.total_points }}</strong> Total Points</span>
+                    <span class="pill"><strong>{{ solved_challenges.count }}</strong> Challenges Solved</span>
+                    <span class="pill"><strong>{{ member_stats|length }}</strong> Members</span>
+                </div>
+            </div>
+
+            <!-- Team Members -->
+            <div class="panel">
+                <div class="detail-header">
+                    <h2>Team Members</h2>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Username</th>
+                            <th>Challenges Solved</th>
+                            <th>Points Contributed</th>
+                            <th>Last Submission</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in member_stats %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ member.username }}</td>
+                            <td>{{ member.solved_count }}</td>
+                            <td>{{ member.points }}</td>
+                            <td>
+                                {% if member.last_submission %}
+                                    {{ member.last_submission|date:"Y-m-d H:i:s" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Solved Challenges -->
+            <div class="panel">
+                <div class="detail-header">
+                    <h2>Solved Challenges</h2>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Challenge</th>
+                            <th>Category</th>
+                            <th>Points</th>
+                            <th>Solved By</th>
+                            <th>Solved At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for submission in solved_challenges %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'challenges:challenge_detail' submission.challenge.id %}" style="color: #9fd6ff; text-decoration: none;">
+                                    {{ submission.challenge.title }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if submission.challenge.category %}
+                                    {{ submission.challenge.category.name }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ submission.challenge.points }}</td>
+                            <td>{{ submission.user.username }}</td>
+                            <td>{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer-actions">
+            <a href="{% url 'challenges:feeds' %}" class="btn btn-primary">Back to Challenges</a>
+        </div>
+    </div>
+    <footer class="site-footer">
+        <span>Myongji University Hacking Club MJSEC · <a href="https://mjsec.kr" target="_blank">mjsec.kr</a></span>
+        <span>Made by <a href="https://github.com/jongcoding" target="_blank">jongcoding</a></span>
+    </footer>
+</body>
+</html>

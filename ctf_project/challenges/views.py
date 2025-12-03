@@ -5,7 +5,7 @@ from django.db.models import Sum, Case, When
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Challenge, Submission, Team, Category
+from .models import Challenge, Submission, Team, Category, CTFConfig
 from django.db.models import Max, Min
 import base64
 import datetime
@@ -157,11 +157,9 @@ def submit_flag(request):
                         if correct:
                             messages.success(request, 'Correct flag!')
                             update_team_points(team)
+                            challenge.update_challenge_score()  # 정답 시에만 점수 업데이트
                         else:
                             messages.error(request, 'Incorrect flag. Try again!')
-
-                        # 점수 업데이트
-                        challenge.update_challenge_score()  # 점수 업데이트
                         return redirect('challenges:challenge_detail', challenge_id=challenge.id)
 
                 else:
@@ -179,11 +177,9 @@ def submit_flag(request):
                     if correct:
                         messages.success(request, 'Correct flag!')
                         update_team_points(team)
+                        challenge.update_challenge_score()  # 정답 시에만 점수 업데이트
                     else:
                         messages.error(request, 'Incorrect flag. Try again!')
-
-                    # 점수 업데이트
-                    challenge.update_challenge_score()  # 점수 업데이트
 
         except Exception as e:
             messages.error(request, f'An error occurred during submission: {e}')
@@ -514,3 +510,91 @@ def submission_stats(request):
     }
 
     return render(request, 'challenges/submission_stats.html', context)
+
+
+def countdown(request):
+    config = CTFConfig.objects.first()
+    if not config:
+        messages.error(request, '대회 설정이 아직 등록되지 않았습니다. 관리자에게 문의하세요.')
+        return redirect('challenges:feeds')
+
+    now = timezone.now()
+    before_start = now < config.start_time
+    after_end = now > config.end_time
+
+    context = {
+        'start_time': config.start_time,
+        'end_time': config.end_time,
+        'before_start': before_start,
+        'after_end': after_end,
+        'now': now,
+    }
+    return render(request, 'challenges/countdown.html', context)
+
+@login_required
+def team_page(request):
+    user = request.user
+    team = user.team_set.first()
+
+    if not team:
+        messages.error(request, 'You are not part of any team.')
+        return redirect("challenges:feeds")
+
+    # Update team points
+    update_team_points(team)
+
+    # Get all team members with their statistics
+    member_stats = []
+    for member in team.members.all():
+        # Count solved challenges by this member
+        solved_count = Submission.objects.filter(
+            user=member,
+            team=team,
+            correct=True
+        ).values('challenge').distinct().count()
+
+        # Calculate points contributed by this member
+        member_points = Submission.objects.filter(
+            user=member,
+            team=team,
+            correct=True
+        ).aggregate(
+            total_points=Sum('challenge__points')
+        )['total_points'] or 0
+
+        # Get last submission time
+        last_submission = Submission.objects.filter(
+            user=member,
+            team=team,
+            correct=True
+        ).order_by('-submitted_at').first()
+
+        member_stats.append({
+            'username': member.username,
+            'solved_count': solved_count,
+            'points': member_points,
+            'last_submission': last_submission.submitted_at if last_submission else None
+        })
+
+    # Sort by points (descending)
+    member_stats.sort(key=lambda x: (-x['points'], x['last_submission'] if x['last_submission'] else timezone.now()))
+
+    # Get team's solved challenges
+    solved_challenges = Submission.objects.filter(
+        team=team,
+        correct=True
+    ).select_related('challenge', 'challenge__category', 'user').order_by('-submitted_at')
+
+    # Get team rank
+    all_teams = Team.objects.all().order_by('-total_points')
+    team_rank = list(all_teams).index(team) + 1 if team in all_teams else None
+
+    context = {
+        'team': team,
+        'member_stats': member_stats,
+        'solved_challenges': solved_challenges,
+        'team_rank': team_rank,
+        'total_teams': all_teams.count(),
+    }
+
+    return render(request, 'challenges/team_page.html', context)

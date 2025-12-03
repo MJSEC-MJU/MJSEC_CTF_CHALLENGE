@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Challenge, Submission,Team, Category
+from .models import Challenge, Submission, Team, Category, CTFConfig
 from django.contrib import messages
 
 @admin.register(Category)
@@ -23,3 +23,4 @@ class SubmissionAdmin(admin.ModelAdmin):
 admin.site.register(Challenge, ChallengeAdmin)
 admin.site.register(Submission, SubmissionAdmin)
 admin.site.register(Team)
+admin.site.register(CTFConfig)

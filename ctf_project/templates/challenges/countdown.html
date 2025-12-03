@@ -1,0 +1,123 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Countdown | MJSEC CTF</title>
+    <link rel="icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="glitch-overlay" id="glitchOverlay">
+        <div class="glitch-lines"></div>
+    </div>
+    <div class="page-shell">
+        <header class="app-header">
+            <div class="brand">
+                <img src="{% static 'images/logo-clear.png' %}" alt="MJSEC 로고">
+                <div>
+                    <h1>MJSEC CTF</h1>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <a href="{% url 'accounts:logout' %}" class="btn btn-ghost">Logout</a>
+            </div>
+        </header>
+
+        <div class="countdown-shell">
+            <div class="countdown-card" id="countdownCard">
+                <div class="countdown-ring">
+                    <div class="countdown-digits" id="countdownDigits">--</div>
+                    <div class="countdown-label">
+                        {% if before_start %}START{% else %}RUNNING{% endif %}
+                    </div>
+                </div>
+                <div class="countdown-meta">
+                    시작: {{ start_time|date:"Y-m-d H:i:s" }} / 종료: {{ end_time|date:"Y-m-d H:i:s" }}
+                </div>
+                <div class="countdown-progress">
+                    <div class="bar" id="countdownBar"></div>
+                </div>
+                <a href="{% url 'challenges:feeds' %}" class="btn btn-primary" style="margin-top: 16px;">Back to Board</a>
+            </div>
+        </div>
+    </div>
+    <footer class="site-footer">
+        <span>Myongji University Hacking Club MJSEC · <a href="https://mjsec.kr" target="_blank">mjsec.kr</a></span>
+        <span>Made by <a href="https://github.com/jongcoding" target="_blank">jongcoding</a></span>
+    </footer>
+
+    <script>
+        (function() {
+            const digitsEl = document.getElementById('countdownDigits');
+            const barEl = document.getElementById('countdownBar');
+            const cardEl = document.getElementById('countdownCard');
+            const startTime = new Date("{{ start_time|date:'c' }}").getTime();
+            const endTime = new Date("{{ end_time|date:'c' }}").getTime();
+            const beforeStart = {{ before_start|yesno:"true,false" }};
+            const initialNow = new Date("{{ now|date:'c' }}").getTime();
+
+            function update() {
+                const now = new Date().getTime();
+                let target = beforeStart ? startTime : endTime;
+                let diff = target - now;
+
+                // Highlight last 10 seconds
+                if (diff <= 10000 && diff > 0) {
+                    cardEl.classList.add('last-ten');
+                    // scale intensity as it approaches zero
+                    const intensity = 1 - diff / 10000;
+                    cardEl.style.setProperty('--last-ten-scale', intensity.toFixed(2));
+                } else {
+                    cardEl.classList.remove('last-ten');
+                    cardEl.style.removeProperty('--last-ten-scale');
+                }
+
+                if (diff <= 0) {
+                    digitsEl.textContent = beforeStart ? "Starting..." : "Ended";
+                    cardEl.classList.add('countdown-complete');
+                    if (beforeStart) {
+                        setTimeout(() => window.location.href = "{% url 'challenges:feeds' %}", 1500);
+                    }
+                    return;
+                }
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                diff -= days * (1000 * 60 * 60 * 24);
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                diff -= hours * (1000 * 60 * 60);
+                const minutes = Math.floor(diff / (1000 * 60));
+                diff -= minutes * (1000 * 60);
+                const seconds = Math.floor(diff / 1000);
+
+                const parts = [];
+                if (days) parts.push(days + 'd');
+                parts.push(String(hours).padStart(2, '0') + 'h');
+                parts.push(String(minutes).padStart(2, '0') + 'm');
+                parts.push(String(seconds).padStart(2, '0') + 's');
+
+                digitsEl.textContent = parts.join(' ');
+
+                // Progress bar: if before start, 0→100 toward start; if during event, 0→100 toward end.
+                let pct = 0;
+                if (beforeStart) {
+                    const spanStart = startTime - initialNow;
+                    if (spanStart > 0) {
+                        pct = 1 - ((startTime - now) / spanStart);
+                    }
+                } else {
+                    const spanEvent = endTime - startTime;
+                    if (spanEvent > 0) {
+                        pct = (now - startTime) / spanEvent;
+                    }
+                }
+                pct = Math.max(0, Math.min(1, pct));
+                barEl.style.width = `${(pct * 100).toFixed(1)}%`;
+            }
+
+            update();
+            setInterval(update, 1000);
+        })();
+    </script>
+</body>
+</html>
