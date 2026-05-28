@@ -124,6 +124,42 @@ jobs:
       - name: Test SSH
         run: ssh -o ConnectTimeout=10 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "echo OK"
 
+      - name: Ensure Docker is installed on server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} <<'EOF'
+            set -euo pipefail
+
+            if [ "$(id -u)" -eq 0 ]; then
+              SUDO=""
+            else
+              command -v sudo >/dev/null 2>&1 || {
+                echo "sudo is required to install Docker for non-root SERVER_USER"
+                exit 1
+              }
+              SUDO="sudo"
+            fi
+
+            if ! command -v docker >/dev/null 2>&1; then
+              $SUDO apt-get update
+              $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io
+            fi
+
+            if ! docker compose version >/dev/null 2>&1; then
+              $SUDO apt-get update
+              $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose-v2 \
+                || $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose-plugin
+            fi
+
+            $SUDO systemctl enable --now docker
+
+            if [ "${{ secrets.SERVER_USER }}" != "root" ]; then
+              $SUDO usermod -aG docker "${{ secrets.SERVER_USER }}"
+            fi
+
+            docker --version
+            docker compose version
+          EOF
+
       - name: Login to Docker Hub on server
         run: |
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
