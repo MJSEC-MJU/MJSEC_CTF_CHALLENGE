@@ -1,0 +1,273 @@
+name: CI/CD - Build, Push & Deploy
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+    tags: [ "v*.*.*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOCKERHUB_IMAGE: myflask
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ctf_project/requirements.txt
+
+      - name: Install dependencies
+        working-directory: ctf_project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check migrations
+        working-directory: ctf_project
+        env:
+          DJANGO_SECRET_KEY: ci-secret-key
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run Django checks
+        working-directory: ctf_project
+        env:
+          DJANGO_SECRET_KEY: ci-secret-key
+        run: python manage.py check
+
+      - name: Run tests
+        working-directory: ctf_project
+        env:
+          DJANGO_SECRET_KEY: ci-secret-key
+        run: python manage.py test --noinput
+
+  build-and-push:
+    needs: ci
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix={{branch}}-,enable=${{ github.ref_type == 'branch' }}
+            type=sha,format=long,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & Push image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ctf_project
+          file: ./ctf_project/dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      REMOTE_DIR: ${{ secrets.REMOTE_APP_DIR }}
+      DOMAIN: ${{ secrets.DOMAIN }}
+      LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          if [ -n "${{ secrets.SERVER_HOST_KEY }}" ]; then
+            echo "${{ secrets.SERVER_HOST_KEY }}" >> ~/.ssh/known_hosts
+          fi
+
+      - name: Test SSH
+        run: ssh -o ConnectTimeout=10 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "echo OK"
+
+      - name: Login to Docker Hub on server
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "docker login -u '${{ secrets.DOCKERHUB_USERNAME }}' --password-stdin"
+
+      - name: Prepare remote directory & .env
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            REMOTE_DIR='${{ secrets.REMOTE_APP_DIR }}' \
+            bash -s <<'EOF'
+          set -euo pipefail
+          : "${REMOTE_DIR:?}"
+          mkdir -p "$REMOTE_DIR"/{nginx,certbot/{config,www,logs}}
+          EOF
+
+          umask 077
+          cat > .deploy.env <<EOF
+          DOMAIN=${{ secrets.DOMAIN }}
+          LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
+          IMAGE_TAG=${{ github.sha }}
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_IMAGE=${{ env.DOCKERHUB_IMAGE }}
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          EOF
+
+          scp -o StrictHostKeyChecking=no .deploy.env \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:"${{ env.REMOTE_DIR }}/.env"
+          rm -f .deploy.env
+
+      - name: Upload HTTP-only Nginx template and compose
+        run: |
+          scp -o StrictHostKeyChecking=no nginx/default.http.conf.template \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:"${{ env.REMOTE_DIR }}/nginx/default.conf.template"
+          scp -o StrictHostKeyChecking=no docker-compose.prod.yml \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:"${{ env.REMOTE_DIR }}/"
+
+      - name: Start HTTP-only stack
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cd '${{ env.REMOTE_DIR }}' &&
+            (docker compose -f docker-compose.prod.yml down --remove-orphans || true) &&
+            docker compose -f docker-compose.prod.yml up -d nginx web
+          "
+
+      - name: Wait for HTTP
+        run: |
+          for i in {1..24}; do
+            if curl -sSf -m 5 http://${{ env.DOMAIN }} >/dev/null 2>&1; then
+              echo "HTTP OK"; exit 0
+            fi
+            echo "...waiting HTTP (${i}/24)"; sleep 5
+          done
+          echo "HTTP check failed"; exit 1
+
+      - name: Issue / Renew SSL
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cd '${{ env.REMOTE_DIR }}' &&
+            docker compose -f docker-compose.prod.yml run --rm certbot \
+              certonly --webroot -w /var/www/certbot \
+              --non-interactive --keep-until-expiring \
+              --email '${{ env.LETSENCRYPT_EMAIL }}' -d '${{ env.DOMAIN }}' \
+              --agree-tos --no-eff-email --rsa-key-size 4096
+          "
+
+      - name: Provide ssl helper files for nginx
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} <<'EOF'
+            set -euo pipefail
+            cd '${{ env.REMOTE_DIR }}'
+            docker compose -f docker-compose.prod.yml run --rm --entrypoint "" certbot sh -euxc '
+              OPTIONS=/etc/letsencrypt/options-ssl-nginx.conf
+              DHPARAM=/etc/letsencrypt/ssl-dhparams.pem
+              mkdir -p /etc/letsencrypt
+              if [ ! -f "$OPTIONS" ]; then
+                SRC=$(find /usr /opt -maxdepth 7 -type f -name options-ssl-nginx.conf 2>/dev/null | head -n1 || true)
+                if [ -n "$SRC" ]; then
+                  cp "$SRC" "$OPTIONS"
+                elif command -v curl >/dev/null 2>&1; then
+                  curl -fsSL https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf -o "$OPTIONS" || true
+                fi
+              fi
+              if [ ! -s "$OPTIONS" ]; then
+                printf "%s\n" \
+                  "ssl_session_cache   shared:SSL:10m;" \
+                  "ssl_session_timeout 1h;" \
+                  "ssl_prefer_server_ciphers on;" \
+                  "ssl_protocols TLSv1.2 TLSv1.3;" \
+                  "ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;" \
+                  > "$OPTIONS"
+              fi
+              if [ ! -f "$DHPARAM" ]; then
+                openssl dhparam -out "$DHPARAM" 2048
+              fi
+            '
+          EOF
+
+      - name: Upload HTTPS Nginx template
+        run: |
+          scp -o StrictHostKeyChecking=no nginx/default.https.conf.template \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:"${{ env.REMOTE_DIR }}/nginx/default.conf.template"
+
+      - name: Apply HTTPS config & reload nginx
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} <<'EOF'
+            set -euo pipefail
+            cd '${{ env.REMOTE_DIR }}'
+            docker compose -f docker-compose.prod.yml exec nginx sh -c "
+              envsubst '\$DOMAIN' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
+              nginx -s reload
+            "
+          EOF
+
+      - name: Deploy latest stack
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cd '${{ env.REMOTE_DIR }}' &&
+            docker compose -f docker-compose.prod.yml pull &&
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          "
+
+      - name: Verify HTTPS
+        run: |
+          for i in {1..12}; do
+            if curl -sSf -m 5 https://${{ env.DOMAIN }} >/dev/null 2>&1; then
+              echo "HTTPS OK"; exit 0
+            fi
+            echo "...waiting HTTPS (${i}/12)"; sleep 10
+          done
+          echo "HTTPS check failed"; exit 1
+
+      - name: Prune images
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "docker image prune -f --filter 'until=24h' || true"
+
+  notify:
+    needs: [ build-and-push, deploy ]
+    runs-on: ubuntu-latest
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Success notice
+        if: needs.deploy.result == 'success'
+        run: echo "Deployed to ${{ secrets.DOMAIN }}"
+
+      - name: Failure notice
+        if: needs.deploy.result != 'success'
+        run: echo "Deployment to ${{ secrets.DOMAIN }} failed"

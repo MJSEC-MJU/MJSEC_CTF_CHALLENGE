@@ -1,0 +1,52 @@
+services:
+  web:
+    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE:-myflask}:${IMAGE_TAG}
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn ctf_project.wsgi:application --bind 0.0.0.0:8000"
+    expose:
+      - "8000"
+    volumes:
+      - ctf_project_static_volume:/app/staticfiles
+      - ctf_project_media_volume:/app/media
+      - ctf_project_data_volume:/app/data
+    environment:
+      DJANGO_SETTINGS_MODULE: ctf_project.settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: ${DOMAIN}
+      CSRF_TRUSTED_ORIGINS: https://${DOMAIN},http://${DOMAIN}
+      SQLITE_DB_PATH: /app/data/db.sqlite3
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ctf_project_static_volume:/staticfiles:ro
+      - ctf_project_media_volume:/media:ro
+      - ./certbot/config:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    environment:
+      DOMAIN: ${DOMAIN}
+    command: >
+      /bin/sh -c "envsubst '$$DOMAIN' < /etc/nginx/templates/default.conf.template
+      > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot:v2.11.0
+    volumes:
+      - ./certbot/config:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/logs:/var/log/letsencrypt
+
+volumes:
+  ctf_project_static_volume:
+  ctf_project_media_volume:
+  ctf_project_data_volume:
